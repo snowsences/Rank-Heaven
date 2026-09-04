@@ -173,6 +173,11 @@
     min-height: calc(100vh - var(--desktop-nav-height) - 40px);
     max-height: calc(100vh - var(--desktop-nav-height) - 40px);
   }
+  body.sync-banner-visible #restaurant-details-panel{
+    top: calc(var(--desktop-nav-height) + 40px);
+    min-height: calc(100vh - var(--desktop-nav-height) - 40px);
+    max-height: calc(100vh - var(--desktop-nav-height) - 40px);
+  }
   .top-nav-settings-btn .top-nav-label{ display: none; } /* bare icon on desktop, matching the reference — mobile re-shows this label */
 
   .top-page{ display: none; }
@@ -230,6 +235,35 @@
   .details-panel-inner{
     width: 400px;
   }
+
+  /* Restaurant details panel — same structural pattern as #details-panel
+     above (sticky sidebar on desktop, full-screen overlay on mobile — see
+     the mobile media query and sync-banner rules below for both), just at
+     600px instead of 400px and with its own content (gallery/tabs) instead
+     of album art. Kept as a fully separate element/class set rather than
+     parameterizing the album panel — the two show fundamentally different
+     content shapes, and this avoids any risk of destabilizing the
+     already-working album panel. */
+  #restaurant-details-panel{
+    width: 0;
+    flex-shrink: 0;
+    align-self: flex-start;
+    position: sticky;
+    top: var(--desktop-nav-height);
+    min-height: calc(100vh - var(--desktop-nav-height));
+    max-height: calc(100vh - var(--desktop-nav-height));
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: var(--panel);
+    border-left: 1px solid var(--panel-line);
+    transition: width 0.5s cubic-bezier(0.37, 0, 0.63, 1);
+  }
+  #restaurant-details-panel.open{
+    width: 600px;
+  }
+  .restaurant-details-panel-inner{
+    width: 600px;
+  }
   .details-art-wrap{
     position: relative;
   }
@@ -259,6 +293,142 @@
     border: none;
   }
   .details-art-wrap .art-drop-hint{ font-size: 64px; }
+
+  /* ---------- RESTAURANT DETAILS: tabs, photo gallery, course cards ---------- */
+  .restaurant-details-tabs{
+    display: flex;
+    gap: 4px;
+    background: var(--bg-2);
+    border: 1px solid var(--panel-line);
+    border-radius: 999px;
+    padding: 4px;
+    margin: 20px 24px 16px;
+  }
+  .restaurant-details-tab-btn{
+    flex: 1;
+    background: transparent;
+    color: var(--chalk-dim);
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .restaurant-details-tab-btn.active{ background: var(--amber); color: var(--ink); }
+  .restaurant-details-tab-panel{ display: none; padding: 0 24px 24px; }
+  .restaurant-details-tab-panel.active{ display: block; }
+
+  .restaurant-photo-add-row{
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .restaurant-photo-add-row input{
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-2);
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--chalk);
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px;
+  }
+  .restaurant-photo-add-row input:focus{ outline: none; border-color: var(--amber); }
+  .restaurant-photo-grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .restaurant-photo-thumb{
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--bg-2);
+  }
+  .restaurant-photo-thumb img{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .restaurant-photo-remove-btn{
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(15,33,36,0.8);
+    color: #fff;
+    border: none;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .restaurant-photo-empty,
+  .restaurant-course-empty{
+    font-size: 13px;
+    color: var(--chalk-dim);
+    text-align: center;
+    padding: 24px 0;
+  }
+
+  .restaurant-course-list{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .restaurant-course-card{
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--panel-line);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .restaurant-course-num{
+    font-family: 'Figtree', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--amber);
+    min-width: 20px;
+    text-align: center;
+    padding-top: 6px;
+    flex-shrink: 0;
+  }
+  .restaurant-course-text{
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    color: var(--chalk);
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 48px;
+    padding: 4px 0;
+  }
+  .restaurant-course-text:focus{ outline: none; }
+  .restaurant-course-remove-btn{
+    background: transparent;
+    border: none;
+    color: var(--chalk-dim);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+  .restaurant-course-remove-btn:hover{ color: var(--brick); }
   .details-content{
     padding: 24px;
   }
@@ -1309,6 +1479,46 @@
     border-radius: 6px;
     box-shadow: 0 24px 64px rgba(0,0,0,0.55);
   }
+  /* Nav arrows/counter only ever render when the overlay has .multi — plain
+     single-image mode (album art) never gets them, matching its existing
+     "click anywhere closes" behavior with nothing to intercept that click. */
+  .lightbox-nav-btn{
+    display: none;
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(15,33,36,0.72);
+    color: #fff;
+    border: none;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 301;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-nav-btn:hover{ background: var(--brick); }
+  .art-lightbox-overlay.multi .lightbox-nav-btn{ display: flex; }
+  .lightbox-prev-btn{ left: 20px; }
+  .lightbox-next-btn{ right: 20px; }
+  .lightbox-counter{
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    background: rgba(15,33,36,0.72);
+    padding: 5px 14px;
+    border-radius: 999px;
+    z-index: 301;
+  }
+  .art-lightbox-overlay.multi .lightbox-counter{ display: block; }
 
   /* ---------- INSIGHTS ---------- */
   .insights-section{
@@ -1516,6 +1726,24 @@
     }
     .details-panel-inner{ width: 100%; }
 
+    #restaurant-details-panel{
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      min-height: 100vh;
+      max-height: 100vh;
+      z-index: 200;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.37, 0, 0.63, 1);
+      visibility: hidden;
+    }
+    #restaurant-details-panel.open{
+      width: 100%;
+      transform: translateX(0);
+      visibility: visible;
+    }
+    .restaurant-details-panel-inner{ width: 100%; }
+
     /* Prevents the page underneath from scrolling while the full-screen
        overlay is open — otherwise a fixed-position overlay can visually
        detach from a background that's still scrolling beneath it. Applied
@@ -1615,6 +1843,11 @@
       padding-top: calc(24px + 40px);
     }
     body.sync-banner-visible #details-panel{
+      top: 40px;
+      min-height: calc(100vh - 40px);
+      max-height: calc(100vh - 40px);
+    }
+    body.sync-banner-visible #restaurant-details-panel{
       top: 40px;
       min-height: calc(100vh - 40px);
       max-height: calc(100vh - 40px);
@@ -2027,6 +2260,10 @@
   <div class="details-panel-inner" id="details-panel-inner"></div>
 </aside>
 
+<aside id="restaurant-details-panel">
+  <div class="restaurant-details-panel-inner" id="restaurant-details-panel-inner"></div>
+</aside>
+
 </div>
 
 <div class="toast" id="toast">Copied to clipboard</div>
@@ -2043,7 +2280,10 @@
 </div>
 
 <div class="art-lightbox-overlay" id="art-lightbox-overlay">
+  <button class="lightbox-nav-btn lightbox-prev-btn" id="lightbox-prev-btn" type="button" title="Previous">‹</button>
   <img class="art-lightbox-img" id="art-lightbox-img" src="" alt="">
+  <button class="lightbox-nav-btn lightbox-next-btn" id="lightbox-next-btn" type="button" title="Next">›</button>
+  <span class="lightbox-counter" id="lightbox-counter"></span>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2236,6 +2476,9 @@
   const detailsPanelInner = document.getElementById('details-panel-inner');
   const artLightboxOverlay = document.getElementById('art-lightbox-overlay');
   const artLightboxImg = document.getElementById('art-lightbox-img');
+  const lightboxPrevBtn = document.getElementById('lightbox-prev-btn');
+  const lightboxNextBtn = document.getElementById('lightbox-next-btn');
+  const lightboxCounter = document.getElementById('lightbox-counter');
   const pageAlbums = document.getElementById('page-albums');
   const pageSettings = document.getElementById('page-settings');
   const topNavAlbumsBtn = document.getElementById('top-nav-albums-btn');
@@ -2258,6 +2501,8 @@
   const restaurantTiersPanel = document.getElementById('restaurant-tiers-panel');
   const restaurantTierPreviewBar = document.getElementById('restaurant-tier-preview-bar');
   const restaurantTiersEditorBody = document.getElementById('restaurant-tiers-editor-body');
+  const restaurantDetailsPanel = document.getElementById('restaurant-details-panel');
+  const restaurantDetailsPanelInner = document.getElementById('restaurant-details-panel-inner');
   const exportAllBtn = document.getElementById('export-all-btn');
   const importAllBtn = document.getElementById('import-all-btn');
   const importAllFile = document.getElementById('import-all-file');
@@ -2922,15 +3167,52 @@
   // Only ever opened for art that already exists (see the details panel
   // render below) — a single click anywhere in the overlay, image included,
   // closes it again.
+  let lightboxPhotos = null; // array of URLs when in gallery mode, else null
+  let lightboxIndex = 0;
+
   function openArtLightbox(src){
+    lightboxPhotos = null;
     artLightboxImg.src = src;
+    artLightboxOverlay.classList.remove('multi');
     artLightboxOverlay.classList.add('show');
   }
+
+  // Multi-photo mode (restaurant galleries) — same overlay, same "click
+  // anywhere closes" behavior, plus prev/next arrows and a counter that the
+  // single-image mode never shows. Navigation wraps around at both ends.
+  function openPhotoLightbox(photos, startIndex){
+    if (!photos || !photos.length) return;
+    lightboxPhotos = photos;
+    lightboxIndex = startIndex;
+    artLightboxImg.src = photos[lightboxIndex];
+    artLightboxOverlay.classList.add('multi');
+    artLightboxOverlay.classList.add('show');
+    updateLightboxCounter();
+  }
+
+  function updateLightboxCounter(){
+    if (!lightboxPhotos) return;
+    lightboxCounter.textContent = (lightboxIndex + 1) + ' / ' + lightboxPhotos.length;
+  }
+
+  function navigateLightbox(delta){
+    if (!lightboxPhotos || !lightboxPhotos.length) return;
+    lightboxIndex = (lightboxIndex + delta + lightboxPhotos.length) % lightboxPhotos.length;
+    artLightboxImg.src = lightboxPhotos[lightboxIndex];
+    updateLightboxCounter();
+  }
+
   function closeArtLightbox(){
     artLightboxOverlay.classList.remove('show');
+    artLightboxOverlay.classList.remove('multi');
     artLightboxImg.src = '';
+    lightboxPhotos = null;
   }
   artLightboxOverlay.addEventListener('click', closeArtLightbox);
+  // Arrows need to stop the click from reaching the overlay's own close
+  // handler — otherwise navigating would also close the lightbox.
+  lightboxPrevBtn.addEventListener('click', (e) => { e.stopPropagation(); navigateLightbox(-1); });
+  lightboxNextBtn.addEventListener('click', (e) => { e.stopPropagation(); navigateLightbox(1); });
 
   // Matches the classic Wikipedia search-results URL shape, e.g.
   // https://en.wikipedia.org/w/index.php?search=muse+origin+of+symmetry&title=Special:Search&ns0=1
@@ -3807,6 +4089,9 @@
     topNavSettingsBtn.classList.toggle('active', showSettings);
     if (!showAlbums && selectedItem){
       closeDetailsPanel();
+    }
+    if (!showRestaurants && openRestaurantIndex !== null){
+      closeRestaurantDetailsPanel();
     }
     if (showSongs){
       renderSongsPage();
@@ -5784,6 +6069,182 @@
         tierChipHtml +
       '</li>';
     }).join('');
+
+    Array.from(restaurantListEl.children).forEach((li, idx) => {
+      li.querySelector('.rank-item').addEventListener('click', () => openRestaurantDetailsPanel(idx));
+    });
+  }
+
+  // ---------- RESTAURANT DETAILS PANEL ----------
+  // Same structural pattern as the album details panel (sticky sidebar /
+  // mobile full-screen overlay / lightbox integration) but built separately
+  // rather than folded into it — the content shape (gallery + tabs) is
+  // different enough that sharing the element would mean a lot of
+  // conditional branching inside code that already works for albums.
+  // Restaurants are referenced by their index in restaurantRows rather than
+  // a stable id — safe for now since nothing currently reorders that array;
+  // worth revisiting if a manual-reorder feature is ever added later.
+  let openRestaurantIndex = null;
+  let restaurantDetailsActiveTab = 'photos';
+
+  function openRestaurantDetailsPanel(index){
+    openRestaurantIndex = index;
+    restaurantDetailsActiveTab = 'photos'; // always starts here on a fresh open
+    restaurantDetailsPanel.classList.add('open');
+    document.body.classList.add('details-open-lock');
+    renderRestaurantDetailsContent();
+  }
+
+  function closeRestaurantDetailsPanel(){
+    openRestaurantIndex = null;
+    restaurantDetailsPanel.classList.remove('open');
+    document.body.classList.remove('details-open-lock');
+  }
+
+  // Mutates the open restaurant's data in place, saves, and re-renders the
+  // panel (preserving whichever tab is currently active) plus the list
+  // behind it (so e.g. a course count or photo would stay in sync if the
+  // list ever shows one).
+  function updateOpenRestaurant(mutatorFn){
+    if (openRestaurantIndex === null) return;
+    const r = restaurantRows[openRestaurantIndex];
+    mutatorFn(r);
+    saveRestaurantProgress();
+    renderRestaurantDetailsContent();
+  }
+
+  function switchRestaurantDetailsTab(tab){
+    restaurantDetailsActiveTab = tab;
+    renderRestaurantDetailsContent();
+  }
+
+  function renderRestaurantPhotosTabHtml(r){
+    const photos = r.photos || [];
+    const gridHtml = photos.length
+      ? photos.map((url, i) =>
+          '<div class="restaurant-photo-thumb" data-photo-index="' + i + '">' +
+            '<img src="' + escapeAttr(url) + '" alt="" loading="lazy">' +
+            '<button class="restaurant-photo-remove-btn" type="button" data-remove-photo-index="' + i + '" title="Remove">✕</button>' +
+          '</div>'
+        ).join('')
+      : '<p class="restaurant-photo-empty">No photos yet — paste a Cloudinary (or any) image URL above to add one.</p>';
+    return (
+      '<div class="restaurant-photo-add-row">' +
+        '<input type="text" id="restaurant-photo-url-input" placeholder="Paste an image URL...">' +
+        '<button class="btn-ghost" id="restaurant-photo-add-btn" type="button">Add</button>' +
+      '</div>' +
+      '<div class="restaurant-photo-grid">' + gridHtml + '</div>'
+    );
+  }
+
+  function renderRestaurantCoursesTabHtml(r){
+    const courses = r.courses || [];
+    const listHtml = courses.length
+      ? courses.map((course, i) =>
+          '<div class="restaurant-course-card">' +
+            '<span class="restaurant-course-num">' + (i + 1) + '</span>' +
+            '<textarea class="restaurant-course-text" data-course-index="' + i + '" placeholder="Course name, notes...">' + escapeHtml(course.text || '') + '</textarea>' +
+            '<button class="restaurant-course-remove-btn" type="button" data-remove-course-index="' + i + '" title="Remove">✕</button>' +
+          '</div>'
+        ).join('')
+      : '<p class="restaurant-course-empty">No courses added yet.</p>';
+    return (
+      '<div class="restaurant-course-list">' + listHtml + '</div>' +
+      '<button class="btn-ghost" id="restaurant-course-add-btn" type="button">+ Add Course</button>'
+    );
+  }
+
+  function renderRestaurantDetailsContent(){
+    if (openRestaurantIndex === null) return;
+    const r = restaurantRows[openRestaurantIndex];
+    const rank = openRestaurantIndex + 1;
+    const { stars } = parseRestaurantNotes(r.notes);
+    const starsHtml = stars > 0 ? ' <span class="restaurant-stars">' + '⭐'.repeat(stars) + '</span>' : '';
+    const meta = [r.cuisine, r.location].filter(Boolean).join(' • ');
+
+    restaurantDetailsPanelInner.innerHTML =
+      '<div class="details-art-wrap">' +
+        '<button class="details-close-btn" type="button" title="Close">✕</button>' +
+      '</div>' +
+      '<div class="details-content" style="padding-top:20px;">' +
+        '<h2 class="details-album">#' + rank + ' ' + escapeHtml(r.name) + starsHtml + '</h2>' +
+        (meta ? '<p class="details-artist">' + escapeHtml(meta) + '</p>' : '') +
+      '</div>' +
+      '<div class="restaurant-details-tabs">' +
+        '<button class="restaurant-details-tab-btn' + (restaurantDetailsActiveTab === 'photos' ? ' active' : '') + '" data-tab="photos" type="button">Photos</button>' +
+        '<button class="restaurant-details-tab-btn' + (restaurantDetailsActiveTab === 'courses' ? ' active' : '') + '" data-tab="courses" type="button">Courses</button>' +
+      '</div>' +
+      '<div class="restaurant-details-tab-panel' + (restaurantDetailsActiveTab === 'photos' ? ' active' : '') + '" id="restaurant-tab-photos">' +
+        renderRestaurantPhotosTabHtml(r) +
+      '</div>' +
+      '<div class="restaurant-details-tab-panel' + (restaurantDetailsActiveTab === 'courses' ? ' active' : '') + '" id="restaurant-tab-courses">' +
+        renderRestaurantCoursesTabHtml(r) +
+      '</div>';
+
+    restaurantDetailsPanelInner.querySelector('.details-close-btn').addEventListener('click', closeRestaurantDetailsPanel);
+
+    restaurantDetailsPanelInner.querySelectorAll('.restaurant-details-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchRestaurantDetailsTab(btn.dataset.tab));
+    });
+
+    // Photos tab wiring
+    const photoUrlInput = restaurantDetailsPanelInner.querySelector('#restaurant-photo-url-input');
+    const photoAddBtn = restaurantDetailsPanelInner.querySelector('#restaurant-photo-add-btn');
+    if (photoAddBtn){
+      const addPhoto = () => {
+        const url = photoUrlInput.value.trim();
+        if (!url) return;
+        updateOpenRestaurant(rest => {
+          if (!rest.photos) rest.photos = [];
+          rest.photos.push(url);
+        });
+      };
+      photoAddBtn.addEventListener('click', addPhoto);
+      photoUrlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addPhoto(); });
+    }
+    restaurantDetailsPanelInner.querySelectorAll('.restaurant-photo-thumb').forEach(thumb => {
+      thumb.addEventListener('click', (e) => {
+        if (e.target.closest('.restaurant-photo-remove-btn')) return; // handled separately below
+        const photos = r.photos || [];
+        openPhotoLightbox(photos, Number(thumb.dataset.photoIndex));
+      });
+    });
+    restaurantDetailsPanelInner.querySelectorAll('.restaurant-photo-remove-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = Number(btn.dataset.removePhotoIndex);
+        updateOpenRestaurant(rest => { rest.photos.splice(i, 1); });
+      });
+    });
+
+    // Courses tab wiring
+    const courseAddBtn = restaurantDetailsPanelInner.querySelector('#restaurant-course-add-btn');
+    if (courseAddBtn){
+      courseAddBtn.addEventListener('click', () => {
+        updateOpenRestaurant(rest => {
+          if (!rest.courses) rest.courses = [];
+          rest.courses.push({ text: '' });
+        });
+        // Focus the newly-added (last) course's textarea once it renders.
+        const textareas = restaurantDetailsPanelInner.querySelectorAll('.restaurant-course-text');
+        const last = textareas[textareas.length - 1];
+        if (last) last.focus();
+      });
+    }
+    restaurantDetailsPanelInner.querySelectorAll('.restaurant-course-text').forEach(textarea => {
+      // Saves on blur rather than every keystroke — avoids a storage write
+      // per character while still capturing edits promptly once you move on.
+      textarea.addEventListener('blur', () => {
+        const i = Number(textarea.dataset.courseIndex);
+        updateOpenRestaurant(rest => { rest.courses[i].text = textarea.value; });
+      });
+    });
+    restaurantDetailsPanelInner.querySelectorAll('.restaurant-course-remove-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = Number(btn.dataset.removeCourseIndex);
+        updateOpenRestaurant(rest => { rest.courses.splice(i, 1); });
+      });
+    });
   }
 
   // ---------- FULL BACKUP (Settings) — bundles all three domains together ----------
