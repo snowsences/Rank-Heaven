@@ -429,19 +429,33 @@
     flex-shrink: 0;
   }
   .restaurant-course-remove-btn:hover{ color: var(--brick); }
+  /* Visually just a number, not a dropdown — appearance:none strips the
+     native select chrome (border, background, arrow) so nothing shows but
+     the text, matching .restaurant-total's prominent look on the list card.
+     It's still a real <select> underneath: clicking it opens the browser's
+     own native picker, no custom dropdown UI needed. Color alone (not size)
+     distinguishes "no score chosen yet" (dim, showing the blank option's —)
+     from an actual score (amber) — toggled directly via JS on change rather
+     than a re-render, same reasoning as saveOpenRestaurantQuietly. */
   .restaurant-course-score{
     flex-shrink: 0;
-    background: var(--bg-2);
-    border: 1px solid var(--panel-line);
-    border-radius: 8px;
-    color: var(--amber);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: transparent;
+    border: none;
     font-family: 'Figtree', sans-serif;
-    font-size: 13px;
+    font-size: 18px;
     font-weight: 700;
-    padding: 5px 6px;
+    line-height: 1;
+    padding: 4px 6px;
+    cursor: pointer;
+    text-align: center;
     align-self: flex-start;
+    color: var(--chalk-dim);
   }
-  .restaurant-course-score:focus{ outline: none; border-color: var(--amber); }
+  .restaurant-course-score.has-score{ color: var(--amber); }
+  .restaurant-course-score:focus{ outline: none; }
   .details-content{
     padding: 24px;
   }
@@ -6174,7 +6188,8 @@
       .concat(RESTAURANT_COURSE_SCORES.map(score =>
         '<option value="' + score + '"' + (current === String(score) ? ' selected' : '') + '>' + score + '</option>'
       ));
-    return '<select class="restaurant-course-score" data-course-index="' + index + '">' + options.join('') + '</select>';
+    const scoreClass = 'restaurant-course-score' + (current !== '' ? ' has-score' : '');
+    return '<select class="' + scoreClass + '" data-course-index="' + index + '">' + options.join('') + '</select>';
   }
 
   function renderRestaurantCoursesTabHtml(r){
@@ -6285,6 +6300,7 @@
     restaurantDetailsPanelInner.querySelectorAll('.restaurant-course-score').forEach(select => {
       select.addEventListener('change', () => {
         const i = Number(select.dataset.courseIndex);
+        select.classList.toggle('has-score', !!select.value); // direct DOM update, not a re-render — see saveOpenRestaurantQuietly
         saveOpenRestaurantQuietly(rest => { rest.courses[i].score = select.value || null; });
       });
     });
