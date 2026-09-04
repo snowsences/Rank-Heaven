@@ -5771,7 +5771,10 @@
             '<span class="rank-album">' + escapeHtml(r.name) + '</span>' +
             starsHtml + visitsHtml +
           '</span>' +
-          (r.location ? '<span class="rank-meta">' + escapeHtml(r.location) + '</span>' : '') +
+          (function(){
+            const meta = [r.cuisine, r.location].filter(Boolean).join(' • ');
+            return meta ? '<span class="rank-meta">' + escapeHtml(meta) + '</span>' : '';
+          })() +
         '</span>' +
         '<span class="restaurant-stats">' +
           (total ? '<span class="restaurant-total">' + escapeHtml(total) + '</span>' : '') +
