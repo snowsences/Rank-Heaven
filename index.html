@@ -429,6 +429,19 @@
     flex-shrink: 0;
   }
   .restaurant-course-remove-btn:hover{ color: var(--brick); }
+  .restaurant-course-score{
+    flex-shrink: 0;
+    background: var(--bg-2);
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+    color: var(--amber);
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 5px 6px;
+    align-self: flex-start;
+  }
+  .restaurant-course-score:focus{ outline: none; border-color: var(--amber); }
   .details-content{
     padding: 24px;
   }
@@ -6071,7 +6084,7 @@
     }).join('');
 
     Array.from(restaurantListEl.children).forEach((li, idx) => {
-      li.querySelector('.rank-item').addEventListener('click', () => openRestaurantDetailsPanel(idx));
+      li.addEventListener('click', () => openRestaurantDetailsPanel(idx));
     });
   }
 
@@ -6113,6 +6126,22 @@
     renderRestaurantDetailsContent();
   }
 
+  // Same, but skips the re-render — for edits where the DOM already shows
+  // the new value correctly on its own (typing in a textarea, picking a
+  // <select> option) and rebuilding the panel would serve no purpose. This
+  // one specifically matters on a course textarea's blur: clicking "+ Add
+  // Course" right after typing fires that blur first, and a full re-render
+  // there would replace the Add Course button with a new DOM node an
+  // instant before its own click event arrives — the click would land on an
+  // element that no longer exists, silently doing nothing, and needing a
+  // second click on the (now real) button to actually register.
+  function saveOpenRestaurantQuietly(mutatorFn){
+    if (openRestaurantIndex === null) return;
+    const r = restaurantRows[openRestaurantIndex];
+    mutatorFn(r);
+    saveRestaurantProgress();
+  }
+
   function switchRestaurantDetailsTab(tab){
     restaurantDetailsActiveTab = tab;
     renderRestaurantDetailsContent();
@@ -6137,6 +6166,17 @@
     );
   }
 
+  const RESTAURANT_COURSE_SCORES = [12, 11, 10, 9, 8]; // 12 first — the most likely/common score, easiest to reach
+
+  function restaurantCourseScoreSelectHtml(course, index){
+    const current = course.score === undefined || course.score === null ? '' : String(course.score);
+    const options = ['<option value=""' + (current === '' ? ' selected' : '') + '>—</option>']
+      .concat(RESTAURANT_COURSE_SCORES.map(score =>
+        '<option value="' + score + '"' + (current === String(score) ? ' selected' : '') + '>' + score + '</option>'
+      ));
+    return '<select class="restaurant-course-score" data-course-index="' + index + '">' + options.join('') + '</select>';
+  }
+
   function renderRestaurantCoursesTabHtml(r){
     const courses = r.courses || [];
     const listHtml = courses.length
@@ -6144,6 +6184,7 @@
           '<div class="restaurant-course-card">' +
             '<span class="restaurant-course-num">' + (i + 1) + '</span>' +
             '<textarea class="restaurant-course-text" data-course-index="' + i + '" placeholder="Course name, notes...">' + escapeHtml(course.text || '') + '</textarea>' +
+            restaurantCourseScoreSelectHtml(course, i) +
             '<button class="restaurant-course-remove-btn" type="button" data-remove-course-index="' + i + '" title="Remove">✕</button>' +
           '</div>'
         ).join('')
@@ -6234,9 +6275,17 @@
     restaurantDetailsPanelInner.querySelectorAll('.restaurant-course-text').forEach(textarea => {
       // Saves on blur rather than every keystroke — avoids a storage write
       // per character while still capturing edits promptly once you move on.
+      // Quiet (no re-render) — see saveOpenRestaurantQuietly's own comment
+      // for why re-rendering here specifically broke the Add Course button.
       textarea.addEventListener('blur', () => {
         const i = Number(textarea.dataset.courseIndex);
-        updateOpenRestaurant(rest => { rest.courses[i].text = textarea.value; });
+        saveOpenRestaurantQuietly(rest => { rest.courses[i].text = textarea.value; });
+      });
+    });
+    restaurantDetailsPanelInner.querySelectorAll('.restaurant-course-score').forEach(select => {
+      select.addEventListener('change', () => {
+        const i = Number(select.dataset.courseIndex);
+        saveOpenRestaurantQuietly(rest => { rest.courses[i].score = select.value || null; });
       });
     });
     restaurantDetailsPanelInner.querySelectorAll('.restaurant-course-remove-btn').forEach(btn => {
