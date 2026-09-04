@@ -21,6 +21,7 @@
     --amber-dark: #C6821F;
     --brick: #C8593F;
     --radius: 18px;
+    --desktop-nav-height: 64px;
   }
 
   *{ box-sizing: border-box; }
@@ -45,30 +46,78 @@
   }
 
   .top-nav-wrap{
-    max-width: 1000px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--panel-line);
+  }
+  .top-nav-inner{
+    max-width: 1180px;
     margin: 0 auto;
-    padding: 24px 20px 0;
+    padding: 0 24px;
+    height: var(--desktop-nav-height);
+    display: flex;
+    align-items: center;
+    gap: 36px;
+  }
+  .top-nav-brand{
+    font-family: 'Figtree', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--chalk);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .top-nav{
-    display: inline-flex;
-    gap: 4px;
-    background: var(--bg-2);
-    border: 1px solid var(--panel-line);
-    border-radius: 999px;
-    padding: 4px;
+    display: flex;
+    align-items: stretch;
+    gap: 30px;
+    flex: 1;
   }
   .top-nav-btn{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
     background: transparent;
     color: var(--chalk-dim);
     font-family: 'Figtree', sans-serif;
-    font-size: 14px;
+    font-size: 14.5px;
     font-weight: 600;
-    padding: 9px 22px;
-    border-radius: 999px;
+    padding: 0;
+    height: var(--desktop-nav-height);
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .top-nav-btn:hover{ color: var(--chalk); }
+  .top-nav-btn.active{
+    background: transparent;
+    color: var(--amber);
+    border-bottom-color: var(--amber);
+  }
+  .top-nav-icon{ font-size: 16px; line-height: 1; flex-shrink: 0; }
+  .top-nav-settings-btn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--chalk-dim);
+    font-size: 17px;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
   }
-  .top-nav-btn.active{ background: var(--amber); color: var(--ink); }
+  .top-nav-settings-btn:hover{ background: var(--bg); color: var(--chalk); }
+  .top-nav-settings-btn.active{ color: var(--amber); }
+  .top-nav-settings-btn .top-nav-label{ display: none; } /* bare icon on desktop, matching the reference — mobile re-shows this label */
 
   .top-page{ display: none; }
   .top-page.active{ display: block; }
@@ -76,14 +125,14 @@
   #app{
     max-width: 1000px;
     margin: 0 auto;
-    padding: 24px 20px 64px;
+    padding: calc(var(--desktop-nav-height) + 24px) 20px 64px;
     display: flex;
     flex-direction: column;
   }
   .song-app{
     max-width: 1000px;
     margin: 0 auto;
-    padding: 24px 20px 64px;
+    padding: calc(var(--desktop-nav-height) + 24px) 20px 64px;
     display: flex;
     flex-direction: column;
   }
@@ -91,7 +140,7 @@
   .page-content{
     max-width: 1000px;
     margin: 0 auto;
-    padding: 24px 20px 64px;
+    padding: calc(var(--desktop-nav-height) + 24px) 20px 64px;
   }
   .settings-section{ margin-bottom: 32px; }
   .settings-section-title{
@@ -110,9 +159,9 @@
     flex-shrink: 0;
     align-self: flex-start; /* don't stretch to match a tall main-content column — height is fixed below instead */
     position: sticky;
-    top: 0;
-    min-height: 100vh; /* always full viewport height, even when its content is short */
-    max-height: 100vh; /* never taller — this is what keeps it from ever scrolling the whole page */
+    top: var(--desktop-nav-height); /* clears the fixed top nav rather than sticking underneath it */
+    min-height: calc(100vh - var(--desktop-nav-height)); /* full remaining viewport height below the nav, even when content is short */
+    max-height: calc(100vh - var(--desktop-nav-height)); /* never taller — this is what keeps it from ever scrolling the whole page */
     overflow-x: hidden; /* clips content during the width slide-in/out */
     overflow-y: auto;   /* its own scroll, independent of the main page — only appears if its content actually exceeds one viewport */
     background: var(--panel);
@@ -120,10 +169,10 @@
     transition: width 0.5s cubic-bezier(0.37, 0, 0.63, 1);
   }
   #details-panel.open{
-    width: 600px;
+    width: 400px;
   }
   .details-panel-inner{
-    width: 600px;
+    width: 400px;
   }
   .details-art-wrap{
     position: relative;
@@ -1134,6 +1183,32 @@
   }
   .btn-danger:hover{ background: #b0553d; transform: translateY(-1px); }
 
+  /* ---------- ART LIGHTBOX ----------
+     z-index 300 — deliberately above everything else in the stacking order,
+     including the mobile full-screen details panel (200). Clicking anywhere
+     in here closes it (the image included, not just the curtain), so a
+     single click handler on the overlay itself covers both — no need to
+     distinguish backdrop clicks from image clicks. */
+  .art-lightbox-overlay{
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(10,20,22,0.9);
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    cursor: pointer;
+  }
+  .art-lightbox-overlay.show{ display: flex; }
+  .art-lightbox-img{
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+  }
+
   /* ---------- INSIGHTS ---------- */
   .insights-section{
     display: none;
@@ -1361,11 +1436,20 @@
     .results-list.grid-mode{ grid-template-columns: repeat(3, 1fr); }
 
     /* ---- Bottom-fixed tab bar (mobile only) ----
-       Desktop/tablet keeps the pill-shaped nav at the top. Below 768px it
-       becomes a fixed bottom bar instead — the standard native-app pattern.
-       This reuses the exact same buttons and click handlers (switchTopPage)
-       as the desktop nav; only the presentation changes here, so there's no
-       separate nav to keep in sync.
+       Desktop/tablet keeps the fixed top bar (brand + underlined tabs +
+       gear icon). Below 768px it becomes a fixed bottom bar instead — the
+       standard native-app pattern. Reuses the exact same buttons and click
+       handlers (switchTopPage) as the desktop nav; only the presentation
+       changes here, so there's no separate nav to keep in sync.
+       The desktop markup nests the three main tabs inside .top-nav, itself
+       inside .top-nav-inner, with the settings button as .top-nav-inner's
+       third sibling (brand, .top-nav, settings). For mobile's "four equal
+       tabs in one row" layout, .top-nav-inner needs to be the flex row, with
+       all four buttons as its direct, equal children — so .top-nav (which
+       has no visual role of its own on mobile) is set to display:contents,
+       dissolving its own box and promoting its three button children up to
+       sit as direct flex siblings of the settings button, rather than
+       nested a level deeper.
        z-index is deliberately lower than #details-panel's (200) so the
        full-screen details overlay correctly covers the tab bar too, matching
        "takes up the entire page" rather than leaving the bar poking out.
@@ -1374,46 +1458,45 @@
     :root{ --mobile-tabbar-height: 58px; }
     .top-nav-wrap{
       position: fixed;
+      top: auto;
       bottom: 0;
       left: 0;
       right: 0;
       z-index: 100;
-      max-width: none;
-      margin: 0;
-      padding: 0 0 env(safe-area-inset-bottom, 0px);
-      background: var(--bg-2);
+      border-bottom: none;
       border-top: 1px solid var(--panel-line);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    .top-nav{
-      display: flex;
-      width: 100%;
-      height: var(--mobile-tabbar-height);
-      background: transparent;
-      border: none;
-      border-radius: 0;
+    .top-nav-inner{
+      max-width: none;
       padding: 0;
+      height: var(--mobile-tabbar-height);
       gap: 0;
     }
-    .top-nav-btn{
+    .top-nav-brand{ display: none; }
+    .top-nav{ display: contents; }
+    .top-nav-btn, .top-nav-settings-btn{
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 3px;
+      width: auto;
+      height: 100%;
       padding: 8px 2px;
       border-radius: 0;
+      border-bottom: none;
       font-size: 10.5px;
     }
-    .top-nav-btn.active{ background: transparent; color: var(--amber); }
-    .top-nav-btn::before{ font-size: 19px; line-height: 1; }
-    #top-nav-albums-btn::before{ content: '💿'; }
-    #top-nav-songs-btn::before{ content: '🎵'; }
-    #top-nav-restaurants-btn::before{ content: '🍴'; }
-    #top-nav-settings-btn::before{ content: '⚙️'; }
+    .top-nav-icon{ font-size: 19px; }
+    .top-nav-settings-btn .top-nav-label{ display: block; } /* re-shown here — hidden only on desktop's bare gear icon */
 
-    /* Keeps every page's own bottom content clear of the fixed bar above. */
+    /* Keeps every page's own bottom content clear of the fixed bar above,
+       and removes the top padding that was clearing the desktop version of
+       the bar — it's no longer at the top on mobile. */
     #app, .song-app, .page-content{
+      padding-top: 24px;
       padding-bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 20px);
     }
   }
@@ -1425,11 +1508,14 @@
 <div id="main-content">
 
   <div class="top-nav-wrap">
-    <div class="top-nav">
-      <button class="top-nav-btn active" id="top-nav-albums-btn" type="button">Albums</button>
-      <button class="top-nav-btn" id="top-nav-songs-btn" type="button">Songs</button>
-      <button class="top-nav-btn" id="top-nav-restaurants-btn" type="button">Restaurants</button>
-      <button class="top-nav-btn" id="top-nav-settings-btn" type="button">Settings</button>
+    <div class="top-nav-inner">
+      <span class="top-nav-brand">Rank Heaven</span>
+      <div class="top-nav">
+        <button class="top-nav-btn active" id="top-nav-albums-btn" type="button"><span class="top-nav-icon">💿</span><span class="top-nav-label">Albums</span></button>
+        <button class="top-nav-btn" id="top-nav-songs-btn" type="button"><span class="top-nav-icon">🎵</span><span class="top-nav-label">Songs</span></button>
+        <button class="top-nav-btn" id="top-nav-restaurants-btn" type="button"><span class="top-nav-icon">🍴</span><span class="top-nav-label">Restaurants</span></button>
+      </div>
+      <button class="top-nav-settings-btn" id="top-nav-settings-btn" type="button" title="Settings"><span class="top-nav-icon">⚙️</span><span class="top-nav-label">Settings</span></button>
     </div>
   </div>
 
@@ -1830,6 +1916,10 @@
   </div>
 </div>
 
+<div class="art-lightbox-overlay" id="art-lightbox-overlay">
+  <img class="art-lightbox-img" id="art-lightbox-img" src="" alt="">
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (function(){
@@ -2017,6 +2107,8 @@
   const modalConfirmBtn = document.getElementById('modal-confirm-btn');
   const detailsPanel = document.getElementById('details-panel');
   const detailsPanelInner = document.getElementById('details-panel-inner');
+  const artLightboxOverlay = document.getElementById('art-lightbox-overlay');
+  const artLightboxImg = document.getElementById('art-lightbox-img');
   const pageAlbums = document.getElementById('page-albums');
   const pageSettings = document.getElementById('page-settings');
   const topNavAlbumsBtn = document.getElementById('top-nav-albums-btn');
@@ -2664,6 +2756,17 @@
 
   // Wires drag/drop + click-to-browse onto a drop-zone element for a given
   // item. Shared by both the list-row and grid-card renderers.
+  // Shared by the art drop zone's own click-to-browse and the details
+  // panel's "Replace Art" button (which needs this same picker once the
+  // art itself is no longer clickable for browsing — see below).
+  function openArtFilePicker(raw){
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.addEventListener('change', () => handleArtFile(raw, input.files[0]));
+    input.click();
+  }
+
   function wireArtDropZone(el, raw, disableClickToBrowse){
     el.addEventListener('dragover', (e) => {
       if (!e.dataTransfer.types.includes('Files')) return; // not a file drag — let it bubble to the row for reordering
@@ -2681,14 +2784,23 @@
     if (!disableClickToBrowse){
       el.addEventListener('click', (e) => {
         e.stopPropagation(); // don't also trigger the grid card's click-through (e.g. opening Wikipedia)
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.addEventListener('change', () => handleArtFile(raw, input.files[0]));
-        input.click();
+        openArtFilePicker(raw);
       });
     }
   }
+
+  // Only ever opened for art that already exists (see the details panel
+  // render below) — a single click anywhere in the overlay, image included,
+  // closes it again.
+  function openArtLightbox(src){
+    artLightboxImg.src = src;
+    artLightboxOverlay.classList.add('show');
+  }
+  function closeArtLightbox(){
+    artLightboxOverlay.classList.remove('show');
+    artLightboxImg.src = '';
+  }
+  artLightboxOverlay.addEventListener('click', closeArtLightbox);
 
   // Matches the classic Wikipedia search-results URL shape, e.g.
   // https://en.wikipedia.org/w/index.php?search=muse+origin+of+symmetry&title=Special:Search&ns0=1
@@ -3629,6 +3741,7 @@
       lastfmSectionHtml = '';
     }
 
+    const hasArt = !!artCache[item];
     detailsPanelInner.innerHTML =
       '<div class="details-art-wrap">' +
         artDropZoneHtml(item, 'details-art') +
@@ -3640,6 +3753,7 @@
         '<div class="details-meta-row">' + rankChip + yearChip + tierChipHtml + '</div>' +
         '<div class="details-actions">' +
           '<button class="details-action-btn" type="button" id="details-wiki-btn">🔍 Open Wikipedia</button>' +
+          (hasArt ? '<button class="details-action-btn" type="button" id="details-replace-art-btn">🖼️ Replace Art</button>' : '') +
           (showRelisten ? '<button class="details-action-btn" type="button" id="details-relisten-btn">🎧 Mark: Need to Listen Again</button>' : '') +
         '</div>' +
         musicbeeSectionHtml +
@@ -3647,10 +3761,27 @@
       '</div>';
 
     detailsPanelInner.querySelector('.details-close-btn').addEventListener('click', closeDetailsPanel);
-    wireArtDropZone(detailsPanelInner.querySelector('.art-drop'), item); // click-to-browse is fine here — no competing click behavior on this art
+    // When art already exists, clicking it opens the lightbox instead of the
+    // file picker — disableClickToBrowse=true skips wiring that click (drag
+    // ­-and-drop replace still works either way), and a separate click
+    // handler opens the lightbox instead. With no art yet, behavior is
+    // unchanged: click opens the file picker, same as it always has.
+    const artDropEl = detailsPanelInner.querySelector('.art-drop');
+    wireArtDropZone(artDropEl, item, hasArt);
+    if (hasArt){
+      artDropEl.title = 'Click to view full size, or drag an image here to replace it';
+      artDropEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openArtLightbox(artCache[item]);
+      });
+    }
     detailsPanelInner.querySelector('#details-wiki-btn').addEventListener('click', () => {
       window.open(wikipediaSearchUrl(p.artist ? (p.artist + ' ' + p.album) : item), '_blank', 'noopener,noreferrer');
     });
+    const replaceArtBtn = detailsPanelInner.querySelector('#details-replace-art-btn');
+    if (replaceArtBtn){
+      replaceArtBtn.addEventListener('click', () => openArtFilePicker(item));
+    }
     const relistenBtn = detailsPanelInner.querySelector('#details-relisten-btn');
     if (relistenBtn){
       relistenBtn.addEventListener('click', () => {
