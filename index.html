@@ -117,6 +117,62 @@
   }
   .top-nav-settings-btn:hover{ background: var(--bg); color: var(--chalk); }
   .top-nav-settings-btn.active{ color: var(--amber); }
+
+  /* ---------- SYNC RECONNECT BANNER ----------
+     z-index 400 — above literally everything else (the art lightbox at 300,
+     the mobile full-screen details panel at 200), since this is meant to be
+     a persistent, always-visible notice regardless of what else is open.
+     Toggling .show on the banner and .sync-banner-visible on body happens
+     together in updateSyncUI() — the body class is what the layout
+     adjustments below key off, so the nav/content/details-panel shift down
+     to make room only while the banner is actually showing. */
+  .sync-reconnect-banner{
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    z-index: 400;
+    background: var(--brick);
+    color: #fff;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 16px;
+    text-align: center;
+  }
+  .sync-reconnect-banner.show{ display: flex; }
+  .sync-banner-link{
+    background: transparent;
+    color: #fff;
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: underline;
+    padding: 0;
+    cursor: pointer;
+  }
+  /* Desktop: nav sits at the fixed top, so the banner pushes it (and
+     everything measured relative to it) down by its own 40px height. Each
+     of these has an explicit mobile-scoped counterpart in the media query
+     below with matching specificity — without it, these same rules (via
+     #app/#details-panel ID selectors) would win on mobile too and fight
+     with that layout's own top:auto/bottom-bar positioning. */
+  body.sync-banner-visible .top-nav-wrap{ top: 40px; }
+  body.sync-banner-visible #app,
+  body.sync-banner-visible .song-app,
+  body.sync-banner-visible .page-content{
+    padding-top: calc(var(--desktop-nav-height) + 40px + 24px);
+  }
+  body.sync-banner-visible #details-panel{
+    top: calc(var(--desktop-nav-height) + 40px);
+    min-height: calc(100vh - var(--desktop-nav-height) - 40px);
+    max-height: calc(100vh - var(--desktop-nav-height) - 40px);
+  }
   .top-nav-settings-btn .top-nav-label{ display: none; } /* bare icon on desktop, matching the reference — mobile re-shows this label */
 
   .top-page{ display: none; }
@@ -1544,10 +1600,33 @@
       padding-top: 24px;
       padding-bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 20px);
     }
+
+    /* Mobile counterparts of the desktop sync-banner rules above — same
+       selectors (body.sync-banner-visible + the same targets), so identical
+       specificity means source order correctly lets these win here. Mobile
+       nav stays at the bottom regardless of the banner (top:auto overrides
+       the desktop rule's top:40px); content and the full-screen details
+       panel just need the banner's 40px added to their existing mobile
+       values, with no desktop nav height involved. */
+    body.sync-banner-visible .top-nav-wrap{ top: auto; }
+    body.sync-banner-visible #app,
+    body.sync-banner-visible .song-app,
+    body.sync-banner-visible .page-content{
+      padding-top: calc(24px + 40px);
+    }
+    body.sync-banner-visible #details-panel{
+      top: 40px;
+      min-height: calc(100vh - 40px);
+      max-height: calc(100vh - 40px);
+    }
   }
 </style>
 </head>
 <body>
+
+<div class="sync-reconnect-banner" id="sync-reconnect-banner">
+  ⚠️ Sync folder needs reconnecting — <button class="sync-reconnect-btn sync-banner-link" type="button">Reconnect</button>
+</div>
 
 <div id="page-shell">
 <div id="main-content">
@@ -2147,6 +2226,7 @@
   const reorderSaveBtn = document.getElementById('reorder-save-btn');
   const reorderCancelBtn = document.getElementById('reorder-cancel-btn');
 
+  const syncReconnectBanner = document.getElementById('sync-reconnect-banner');
   const modalOverlay = document.getElementById('modal-overlay');
   const modalTitle = document.getElementById('modal-title');
   const modalBody = document.getElementById('modal-body');
@@ -2373,6 +2453,8 @@
     document.querySelectorAll('.sync-status-text').forEach(el => { el.textContent = text; });
     document.querySelectorAll('.sync-connect-btn').forEach(el => { el.style.display = showConnect ? 'inline-block' : 'none'; });
     document.querySelectorAll('.sync-reconnect-btn').forEach(el => { el.style.display = showReconnect ? 'inline-block' : 'none'; });
+    syncReconnectBanner.classList.toggle('show', showReconnect);
+    document.body.classList.toggle('sync-banner-visible', showReconnect);
   }
 
   async function loadSyncHandle(){
