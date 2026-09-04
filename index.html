@@ -5408,19 +5408,37 @@
   }
 
   // ============================================================
-  // RESTAURANTS — skeleton: import + flat list, no ranking yet
+  // RESTAURANTS — fixed schema: Name, Notes, Cuisine, Location, Best
+  // Flavor, Flavor Variety, Total, Price, Year, Bests
   // ------------------------------------------------------------
-  // Deliberately minimal for now: an Excel import populates a list, the
-  // list displays. No duels, no ordering mechanism, no edit mode, no
-  // details view — those come later once there's a clearer sense of what a
-  // restaurant entry should actually track. Columns aren't fixed to any
-  // particular schema — whatever headers the imported spreadsheet has
-  // become each row's fields, displayed generically (first column as the
-  // primary line, the rest as a secondary line) rather than assuming
-  // something like Name/Cuisine/Address up front.
+  // Columns are matched by POSITION (first 10 columns of row 1, in this
+  // exact order), not by header text — row 1 is treated purely as a header
+  // to skip, and any columns beyond the 10th are ignored entirely. Row order
+  // in the file is preserved as-is; there's no ranking mechanism here, the
+  // spreadsheet's own order is the list's order.
+  // List view here is deliberately partial — Name as the primary line,
+  // Cuisine/Location as a secondary line — matching Albums' list density.
+  // The remaining fields (Notes, Best Flavor, Flavor Variety, Total, Price,
+  // Year, Bests) are parsed and stored now but not yet surfaced in the UI;
+  // that's the next step, once there's a details panel to put them in.
   const RESTAURANT_STORAGE_KEY = 'restaurant-list';
-  let restaurantRows = []; // array of row objects, keyed by whatever headers the imported file had
+  const RESTAURANT_COLUMNS = ['name', 'notes', 'cuisine', 'location', 'bestFlavor', 'flavorVariety', 'total', 'price', 'year', 'bests'];
+  let restaurantRows = []; // array of { name, notes, cuisine, location, bestFlavor, flavorVariety, total, price, year, bests }
   let restaurantLastSavedAt = null;
+
+  function parseRestaurantXlsx(buffer){
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+    return raw.slice(1) // row 1 is the header — skip it
+      .map(row => {
+        const entry = {};
+        RESTAURANT_COLUMNS.forEach((key, i) => {
+          entry[key] = String(row[i] == null ? '' : row[i]).trim();
+        });
+        return entry;
+      })
+      .filter(entry => entry.name); // a row with no name isn't a real restaurant entry
+  }
 
   async function saveRestaurantProgress(){
     restaurantLastSavedAt = new Date().toISOString();
@@ -5437,14 +5455,12 @@
       restaurantListEl.innerHTML = '<p class="details-future-note">Import a spreadsheet above to see your restaurant list here.</p>';
       return;
     }
-    restaurantListEl.innerHTML = restaurantRows.map((row, idx) => {
-      const values = Object.values(row).map(v => String(v == null ? '' : v).trim()).filter(Boolean);
-      const primary = values[0] || '(untitled)';
-      const secondary = values.slice(1).join(' · ');
+    restaurantListEl.innerHTML = restaurantRows.map((r, idx) => {
+      const secondary = [r.cuisine, r.location].filter(Boolean).join(' · ');
       return '<li>' +
         '<span class="rank-num">' + (idx + 1) + '</span>' +
         '<span class="rank-item">' +
-          '<span class="rank-album">' + escapeHtml(primary) + '</span>' +
+          '<span class="rank-album">' + escapeHtml(r.name) + '</span>' +
           (secondary ? '<span class="rank-meta">' + escapeHtml(secondary) + '</span>' : '') +
         '</span>' +
       '</li>';
@@ -5459,14 +5475,13 @@
     reader.onload = () => {
       let rows;
       try{
-        const wb = XLSX.read(reader.result, { type: 'array' });
-        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+        rows = parseRestaurantXlsx(reader.result);
       }catch(err){
         showToast('Could not read that file');
         return;
       }
       if (!rows.length){
-        showToast('No rows found in that file');
+        showToast('No valid rows found in that file');
         return;
       }
       restaurantRows = rows;
