@@ -746,6 +746,51 @@
     white-space: nowrap;
     flex-shrink: 0;
   }
+  .restaurant-name-row{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .restaurant-stars{
+    font-size: 11px;
+    letter-spacing: -1px;
+    flex-shrink: 0;
+  }
+  .restaurant-visits{
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--chalk-dim);
+    background: var(--bg-2);
+    border: 1px solid var(--panel-line);
+    border-radius: 999px;
+    padding: 1px 7px;
+    flex-shrink: 0;
+  }
+  .restaurant-stats{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+  .restaurant-total{
+    font-family: 'Figtree', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--amber);
+    line-height: 1;
+  }
+  .restaurant-breakdown{
+    font-size: 11px;
+    color: var(--chalk-dim);
+  }
+  .restaurant-price{
+    font-size: 12px;
+    color: var(--chalk-dim);
+    font-weight: 600;
+  }
   .grouping-chip{
     display: inline-block;
     font-size: 10.5px;
@@ -1803,15 +1848,17 @@
     <div class="page-content">
       <p class="eyebrow">Restaurants</p>
       <h1>Restaurant List</h1>
-      <p class="sub">A starting skeleton — import a spreadsheet to see the list here. No ranking yet, just import and display.</p>
-
-      <div class="import-row">
-        <span>Have a spreadsheet of restaurants?</span>
-        <button class="btn-ghost" id="restaurant-import-btn" type="button">Import Excel (.xlsx)</button>
-        <input type="file" id="restaurant-import-file" accept=".xlsx" style="display:none;">
-      </div>
 
       <ol class="results-list" id="restaurant-list"></ol>
+
+      <div class="tiers-panel" id="restaurant-tiers-panel">
+        <div class="tiers-panel-header">
+          <p class="insights-block-title" style="margin:0;">Tiers</p>
+        </div>
+        <div class="tier-preview-bar" id="restaurant-tier-preview-bar"></div>
+        <div id="restaurant-tiers-editor-body"></div>
+        <p class="tiers-note">Gold, Silver, and Bronze only — everything past the Bronze boundary is left untiered.</p>
+      </div>
     </div>
   </div>
 
@@ -2127,9 +2174,10 @@
   const pageSongs = document.getElementById('page-songs');
   const topNavRestaurantsBtn = document.getElementById('top-nav-restaurants-btn');
   const pageRestaurants = document.getElementById('page-restaurants');
-  const restaurantImportBtn = document.getElementById('restaurant-import-btn');
-  const restaurantImportFile = document.getElementById('restaurant-import-file');
   const restaurantListEl = document.getElementById('restaurant-list');
+  const restaurantTiersPanel = document.getElementById('restaurant-tiers-panel');
+  const restaurantTierPreviewBar = document.getElementById('restaurant-tier-preview-bar');
+  const restaurantTiersEditorBody = document.getElementById('restaurant-tiers-editor-body');
   const exportAllBtn = document.getElementById('export-all-btn');
   const importAllBtn = document.getElementById('import-all-btn');
   const importAllFile = document.getElementById('import-all-file');
@@ -5411,34 +5459,19 @@
   // RESTAURANTS — fixed schema: Name, Notes, Cuisine, Location, Best
   // Flavor, Flavor Variety, Total, Price, Year, Bests
   // ------------------------------------------------------------
-  // Columns are matched by POSITION (first 10 columns of row 1, in this
-  // exact order), not by header text — row 1 is treated purely as a header
-  // to skip, and any columns beyond the 10th are ignored entirely. Row order
-  // in the file is preserved as-is; there's no ranking mechanism here, the
-  // spreadsheet's own order is the list's order.
-  // List view here is deliberately partial — Name as the primary line,
-  // Cuisine/Location as a secondary line — matching Albums' list density.
-  // The remaining fields (Notes, Best Flavor, Flavor Variety, Total, Price,
-  // Year, Bests) are parsed and stored now but not yet surfaced in the UI;
-  // that's the next step, once there's a details panel to put them in.
+  // Import is gone now that the real list is in — data comes in only via
+  // Import All Data in Settings (a full JSON backup) going forward.
+  // Notes is parsed for two embedded signals rather than stored as separate
+  // fields: a Michelin rating ("1*"/"2*"/"3*") and a visit count ("x2",
+  // "x6"). Parsing happens at render time, not at import time, specifically
+  // so it works retroactively on the data already imported before this
+  // parsing existed — no re-import needed. Only 2+ visits are ever shown,
+  // per the 1-visit-is-the-default case not being worth a badge.
+  // Cuisine, Year, and Bests are stored but not shown here — reserved for
+  // the details panel, not part of the list-card design.
   const RESTAURANT_STORAGE_KEY = 'restaurant-list';
-  const RESTAURANT_COLUMNS = ['name', 'notes', 'cuisine', 'location', 'bestFlavor', 'flavorVariety', 'total', 'price', 'year', 'bests'];
   let restaurantRows = []; // array of { name, notes, cuisine, location, bestFlavor, flavorVariety, total, price, year, bests }
   let restaurantLastSavedAt = null;
-
-  function parseRestaurantXlsx(buffer){
-    const wb = XLSX.read(buffer, { type: 'array' });
-    const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
-    return raw.slice(1) // row 1 is the header — skip it
-      .map(row => {
-        const entry = {};
-        RESTAURANT_COLUMNS.forEach((key, i) => {
-          entry[key] = String(row[i] == null ? '' : row[i]).trim();
-        });
-        return entry;
-      })
-      .filter(entry => entry.name); // a row with no name isn't a real restaurant entry
-  }
 
   async function saveRestaurantProgress(){
     restaurantLastSavedAt = new Date().toISOString();
@@ -5450,49 +5483,223 @@
     scheduleSyncWrite();
   }
 
-  function renderRestaurantsPage(){
-    if (!restaurantRows.length){
-      restaurantListEl.innerHTML = '<p class="details-future-note">Import a spreadsheet above to see your restaurant list here.</p>';
+  function parseRestaurantNotes(notes){
+    const text = notes || '';
+    const starMatch = text.match(/(\d)\s*\*/);
+    const stars = starMatch ? parseInt(starMatch[1], 10) : 0;
+    const visitMatch = text.match(/x\s*(\d+)/i);
+    const visits = visitMatch ? parseInt(visitMatch[1], 10) : 1; // no "xN" found -> the default single visit
+    return { stars, visits };
+  }
+
+  function formatRestaurantPrice(raw){
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return '';
+    if (/^\d+(\.\d+)?$/.test(trimmed)) return '$' + trimmed; // a bare number -> prefix as USD
+    return trimmed; // already has $ or its own formatting (e.g. "$$") -> leave as-is
+  }
+
+  // ---------- RESTAURANT TIERS ----------
+  // Same slider-based control as Albums, but only 3 tiers, each individually
+  // bounded (Gold/Silver/Bronze all have an explicit end, unlike Albums
+  // where the last tier is "whatever's left"). Anything past the Bronze
+  // boundary gets no tier at all, rather than folding into a catch-all.
+  const RESTAURANT_TIERS = [
+    { key: 'gold',   name: 'Gold',   color: '#E8B93D' },
+    { key: 'silver', name: 'Silver', color: '#B7BCC2' },
+    { key: 'bronze', name: 'Bronze', color: '#C97B4A' }
+  ];
+  const RESTAURANT_TIER_STORAGE_KEY = 'restaurant-tiers';
+  let restaurantTierBoundaries = null; // [b1, b2, b3] — ending rank of Gold/Silver/Bronze; beyond b3 = no tier
+  let restaurantTierBoundariesTotal = 0;
+
+  function restaurantClampCascade(boundaries, total){
+    let [b1, b2, b3] = boundaries;
+    b1 = Math.max(1, Math.min(total - 2, Math.round(b1) || 1));
+    b2 = Math.max(b1 + 1, Math.min(total - 1, Math.round(b2) || (b1 + 1)));
+    b3 = Math.max(b2 + 1, Math.min(total, Math.round(b3) || (b2 + 1)));
+    return [b1, b2, b3];
+  }
+
+  function computeDefaultRestaurantTierBoundaries(total){
+    return restaurantClampCascade([
+      Math.round(total * 0.10),
+      Math.round(total * 0.25),
+      Math.round(total * 0.45)
+    ], total);
+  }
+
+  function getRestaurantTierForRank(rank, boundaries){
+    if (rank <= boundaries[0]) return RESTAURANT_TIERS[0];
+    if (rank <= boundaries[1]) return RESTAURANT_TIERS[1];
+    if (rank <= boundaries[2]) return RESTAURANT_TIERS[2];
+    return null; // past Bronze — no tier
+  }
+
+  async function saveRestaurantTierConfig(){
+    try{
+      await window.storage.set(RESTAURANT_TIER_STORAGE_KEY, JSON.stringify({
+        total: restaurantTierBoundariesTotal, boundaries: restaurantTierBoundaries
+      }), false);
+    }catch(e){ /* best effort */ }
+    scheduleSyncWrite();
+  }
+
+  async function loadRestaurantTierConfig(total){
+    try{
+      const res = await window.storage.get(RESTAURANT_TIER_STORAGE_KEY, false);
+      if (res && res.value){
+        const parsed = JSON.parse(res.value);
+        if (parsed && parsed.total === total && Array.isArray(parsed.boundaries) && parsed.boundaries.length === 3){
+          return parsed;
+        }
+      }
+    }catch(e){ /* nothing saved */ }
+    return null;
+  }
+
+  function maybeInitRestaurantTiers(total){
+    if (restaurantTierBoundariesTotal === total) return;
+    restaurantTierBoundariesTotal = total;
+    restaurantTierBoundaries = computeDefaultRestaurantTierBoundaries(total);
+    renderRestaurantTiersEditor(total);
+    loadRestaurantTierConfig(total).then(saved => {
+      if (saved && restaurantTierBoundariesTotal === total){
+        restaurantTierBoundaries = restaurantClampCascade(saved.boundaries, total);
+        renderRestaurantTiersEditor(total);
+        renderRestaurantsPage();
+      }
+    });
+  }
+
+  function restaurantTierBoundaryRowHtml(i, label, value, min, max){
+    const tier = RESTAURANT_TIERS[i];
+    return (
+      '<div class="tier-boundary-row">' +
+        '<span class="tier-swatch" style="background:' + tier.color + '"></span>' +
+        '<span class="tier-boundary-label">' + label + '</span>' +
+        '<input type="range" class="tier-range" id="restaurant-tier-b' + (i + 1) + '-range" min="' + min + '" max="' + max + '" value="' + value + '">' +
+        '<input type="number" class="tier-num" id="restaurant-tier-b' + (i + 1) + '-num" min="' + min + '" max="' + max + '" value="' + value + '">' +
+      '</div>'
+    );
+  }
+
+  function renderRestaurantTiersEditor(total){
+    if (total < 3){
+      restaurantTiersPanel.style.display = 'none';
       return;
     }
-    restaurantListEl.innerHTML = restaurantRows.map((r, idx) => {
-      const secondary = [r.cuisine, r.location].filter(Boolean).join(' · ');
-      return '<li>' +
-        '<span class="rank-num">' + (idx + 1) + '</span>' +
-        '<span class="rank-item">' +
-          '<span class="rank-album">' + escapeHtml(r.name) + '</span>' +
-          (secondary ? '<span class="rank-meta">' + escapeHtml(secondary) + '</span>' : '') +
-        '</span>' +
-      '</li>';
+    restaurantTiersPanel.style.display = 'block';
+    const maxB1 = total - 2, maxB2 = total - 1, maxB3 = total;
+    restaurantTiersEditorBody.innerHTML =
+      restaurantTierBoundaryRowHtml(0, 'Gold ends at', restaurantTierBoundaries[0], 1, maxB1) +
+      restaurantTierBoundaryRowHtml(1, 'Silver ends at', restaurantTierBoundaries[1], restaurantTierBoundaries[0] + 1, maxB2) +
+      restaurantTierBoundaryRowHtml(2, 'Bronze ends at', restaurantTierBoundaries[2], restaurantTierBoundaries[1] + 1, maxB3) +
+      '<div class="tier-boundary-row">' +
+        '<span class="tier-swatch" style="background:transparent; border:1px dashed var(--panel-line);"></span>' +
+        '<span class="tier-boundary-label" id="restaurant-tier-untiered-count">No tier: rest of the list (' + (total - restaurantTierBoundaries[2]) + ')</span>' +
+      '</div>';
+
+    [0, 1, 2].forEach(i => {
+      const rangeEl = document.getElementById('restaurant-tier-b' + (i + 1) + '-range');
+      const numEl = document.getElementById('restaurant-tier-b' + (i + 1) + '-num');
+      rangeEl.addEventListener('input', () => commitRestaurantTierBoundary(i, Number(rangeEl.value)));
+      numEl.addEventListener('change', () => commitRestaurantTierBoundary(i, Number(numEl.value)));
+    });
+
+    updateRestaurantTierPreviewBar(restaurantTierBoundaries, total);
+  }
+
+  function syncRestaurantTierInputs(){
+    const total = restaurantTierBoundariesTotal;
+    const mins = [1, restaurantTierBoundaries[0] + 1, restaurantTierBoundaries[1] + 1];
+    const maxes = [total - 2, total - 1, total];
+    for (let i = 0; i < 3; i++){
+      const rangeEl = document.getElementById('restaurant-tier-b' + (i + 1) + '-range');
+      const numEl = document.getElementById('restaurant-tier-b' + (i + 1) + '-num');
+      if (!rangeEl || !numEl) continue;
+      rangeEl.min = mins[i]; rangeEl.max = maxes[i]; rangeEl.value = restaurantTierBoundaries[i];
+      numEl.min = mins[i]; numEl.max = maxes[i]; numEl.value = restaurantTierBoundaries[i];
+    }
+    const untieredCountEl = document.getElementById('restaurant-tier-untiered-count');
+    if (untieredCountEl) untieredCountEl.textContent = 'No tier: rest of the list (' + (total - restaurantTierBoundaries[2]) + ')';
+    updateRestaurantTierPreviewBar(restaurantTierBoundaries, total);
+  }
+
+  function commitRestaurantTierBoundary(changedIndex, rawValue){
+    const total = restaurantTierBoundariesTotal;
+    const candidate = restaurantTierBoundaries.slice();
+    candidate[changedIndex] = rawValue;
+    restaurantTierBoundaries = restaurantClampCascade(candidate, total);
+    syncRestaurantTierInputs();
+    saveRestaurantTierConfig();
+    renderRestaurantsPage();
+  }
+
+  function updateRestaurantTierPreviewBar(boundaries, total){
+    const [b1, b2, b3] = boundaries;
+    const counts = [b1, b2 - b1, b3 - b2, total - b3];
+    const segs = RESTAURANT_TIERS.map((tier, i) => ({ name: tier.name, color: tier.color, count: counts[i] }));
+    segs.push({ name: 'No tier', color: null, count: counts[3] });
+    restaurantTierPreviewBar.innerHTML = segs.map(seg => {
+      const pct = (seg.count / total) * 100;
+      const label = pct >= 8 ? seg.name + ' (' + seg.count + ')' : '';
+      const style = seg.color
+        ? 'flex-basis:' + pct + '%; background:' + seg.color + ';'
+        : 'flex-basis:' + pct + '%; background:var(--bg-2); border:1px dashed var(--panel-line); box-sizing:border-box;';
+      return '<div class="tier-preview-seg" style="' + style + '">' + label + '</div>';
     }).join('');
   }
 
-  restaurantImportBtn.addEventListener('click', () => restaurantImportFile.click());
-  restaurantImportFile.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      let rows;
-      try{
-        rows = parseRestaurantXlsx(reader.result);
-      }catch(err){
-        showToast('Could not read that file');
-        return;
+  function renderRestaurantsPage(){
+    maybeInitRestaurantTiers(restaurantRows.length);
+    if (!restaurantRows.length){
+      restaurantListEl.innerHTML = '<p class="details-future-note">No restaurants yet — use Import All Data in Settings to restore a backup.</p>';
+      restaurantTiersPanel.style.display = 'none';
+      return;
+    }
+    restaurantListEl.innerHTML = restaurantRows.map((r, idx) => {
+      const rank = idx + 1;
+      const { stars, visits } = parseRestaurantNotes(r.notes);
+      const starsHtml = stars > 0
+        ? '<span class="restaurant-stars" title="' + stars + ' Michelin star' + (stars === 1 ? '' : 's') + '">' + '⭐'.repeat(stars) + '</span>'
+        : '';
+      const visitsHtml = visits >= 2
+        ? '<span class="restaurant-visits" title="Visited ' + visits + ' times">×' + visits + '</span>'
+        : '';
+      const price = formatRestaurantPrice(r.price);
+      const total = (r.total || '').trim();
+      const breakdownParts = [r.bestFlavor, r.flavorVariety].filter(Boolean);
+      const breakdown = breakdownParts.join(' + ');
+
+      let tierChipHtml = '';
+      let borderAttr = '';
+      if (restaurantTierBoundaries){
+        const tier = getRestaurantTierForRank(rank, restaurantTierBoundaries);
+        if (tier){
+          borderAttr = ' style="border-left:4px solid ' + tier.color + ';"';
+          tierChipHtml = '<span class="tier-chip" style="background:' + hexToRgba(tier.color, 0.18) + '; color:' + tier.color + ';">' + tier.name + '</span>';
+        }
       }
-      if (!rows.length){
-        showToast('No valid rows found in that file');
-        return;
-      }
-      restaurantRows = rows;
-      saveRestaurantProgress();
-      renderRestaurantsPage();
-      showToast('Imported ' + rows.length + ' restaurant' + (rows.length === 1 ? '' : 's'));
-    };
-    reader.onerror = () => showToast('Could not read that file');
-    reader.readAsArrayBuffer(file);
-    e.target.value = '';
-  });
+
+      return '<li' + borderAttr + '>' +
+        '<span class="rank-num">' + rank + '</span>' +
+        '<span class="rank-item">' +
+          '<span class="restaurant-name-row">' +
+            '<span class="rank-album">' + escapeHtml(r.name) + '</span>' +
+            starsHtml + visitsHtml +
+          '</span>' +
+          (r.location ? '<span class="rank-meta">' + escapeHtml(r.location) + '</span>' : '') +
+        '</span>' +
+        '<span class="restaurant-stats">' +
+          (total ? '<span class="restaurant-total">' + escapeHtml(total) + '</span>' : '') +
+          (breakdown ? '<span class="restaurant-breakdown">' + escapeHtml(breakdown) + '</span>' : '') +
+          (price ? '<span class="restaurant-price">' + escapeHtml(price) + '</span>' : '') +
+        '</span>' +
+        tierChipHtml +
+      '</li>';
+    }).join('');
+  }
 
   // ---------- FULL BACKUP (Settings) — bundles all three domains together ----------
   exportAllBtn.addEventListener('click', async () => {
