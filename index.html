@@ -436,8 +436,10 @@
      own native picker, no custom dropdown UI needed. Color alone (not size)
      distinguishes "no score chosen yet" (dim, showing the blank option's —)
      from an actual score (amber) — toggled directly via JS on change rather
-     than a re-render, same reasoning as saveOpenRestaurantQuietly. */
-  .restaurant-course-score{
+     than a re-render, same reasoning as saveOpenRestaurantQuietly. Shared by
+     course-card scores and the Best Flavor / Flavor Variety selects near
+     the details heading — same look everywhere a score is picked. */
+  .restaurant-score-select{
     flex-shrink: 0;
     appearance: none;
     -webkit-appearance: none;
@@ -454,8 +456,86 @@
     align-self: flex-start;
     color: var(--chalk-dim);
   }
-  .restaurant-course-score.has-score{ color: var(--amber); }
-  .restaurant-course-score:focus{ outline: none; }
+  .restaurant-score-select.has-score{ color: var(--amber); }
+  .restaurant-score-select:focus{ outline: none; }
+
+  .restaurant-scores-row{
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    margin: 14px 0 4px;
+  }
+  .restaurant-score-block{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .restaurant-score-label{
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--chalk-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .restaurant-score-total-value{
+    font-family: 'Figtree', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--amber);
+    line-height: 1;
+    padding: 4px 6px;
+  }
+
+  .details-edit-btn{
+    position: absolute;
+    top: 20px;
+    right: 58px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(15,33,36,0.72);
+    color: #fff;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+  .details-edit-btn:hover{ background: var(--amber); color: var(--ink); }
+
+  .restaurant-edit-form{
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 14px;
+  }
+  .restaurant-edit-label{
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--chalk-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-top: 10px;
+  }
+  .restaurant-edit-input{
+    background: var(--bg-2);
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+    padding: 9px 10px;
+    color: var(--chalk);
+    font-family: 'Figtree', sans-serif;
+    font-size: 14px;
+  }
+  .restaurant-edit-input:focus{ outline: none; border-color: var(--amber); }
+  .restaurant-edit-actions{
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
   .details-content{
     padding: 24px;
   }
@@ -621,6 +701,14 @@
     line-height: 1.02;
     margin: 0 0 14px;
   }
+  .page-heading-row{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .page-heading-row h1{ margin: 0 0 14px; }
 
   .sub{
     color: var(--chalk-dim);
@@ -2186,7 +2274,10 @@
   <div id="page-restaurants" class="top-page">
     <div class="page-content">
       <p class="eyebrow">Restaurants</p>
-      <h1>Restaurant List</h1>
+      <div class="page-heading-row">
+        <h1>Restaurant List</h1>
+        <button class="btn-primary" id="restaurant-new-btn" type="button">+ New Restaurant</button>
+      </div>
 
       <ol class="results-list" id="restaurant-list"></ol>
 
@@ -2217,7 +2308,7 @@
         <div class="import-row">
           <span>Restore everything from a full backup file</span>
           <button class="btn-ghost" id="import-all-btn" type="button">Import All Data (.json)</button>
-          <input type="file" id="import-all-file" accept="application/json" style="display:none;">
+          <input type="file" id="import-all-file" accept="application/json,.json" style="display:none;">
         </div>
       </div>
 
@@ -2233,7 +2324,7 @@
         <div class="import-row">
           <span>Have a progress file from another session?</span>
           <button class="btn-ghost" id="import-btn">Import Progress (.json)</button>
-          <input type="file" id="import-file" accept="application/json" style="display:none;">
+          <input type="file" id="import-file" accept="application/json,.json" style="display:none;">
         </div>
 
         <div class="sync-row" style="display:none;">
@@ -2263,7 +2354,7 @@
         <div class="import-row">
           <span>Have a song progress file from another session?</span>
           <button class="btn-ghost" id="song-import-btn">Import Progress (.json)</button>
-          <input type="file" id="song-import-file" accept="application/json" style="display:none;">
+          <input type="file" id="song-import-file" accept="application/json,.json" style="display:none;">
         </div>
       </div>
 
@@ -2525,6 +2616,7 @@
   const topNavRestaurantsBtn = document.getElementById('top-nav-restaurants-btn');
   const pageRestaurants = document.getElementById('page-restaurants');
   const restaurantListEl = document.getElementById('restaurant-list');
+  const restaurantNewBtn = document.getElementById('restaurant-new-btn');
   const restaurantTiersPanel = document.getElementById('restaurant-tiers-panel');
   const restaurantTierPreviewBar = document.getElementById('restaurant-tier-preview-bar');
   const restaurantTiersEditorBody = document.getElementById('restaurant-tiers-editor-body');
@@ -5886,6 +5978,20 @@
     return { stars, visits };
   }
 
+  // Prefers the explicit "stars" field (set via the new Edit form) over the
+  // older Notes-embedded "N*" pattern — this is what lets existing
+  // restaurants (imported before this field existed) keep showing their
+  // correct star count without needing to be re-imported, while anything
+  // edited through the new form "upgrades" to the explicit field going
+  // forward the moment it's saved.
+  function restaurantStarsCount(r){
+    if (r.stars !== undefined && r.stars !== null && r.stars !== ''){
+      const n = Number(r.stars);
+      return isNaN(n) ? 0 : n;
+    }
+    return parseRestaurantNotes(r.notes).stars;
+  }
+
   function formatRestaurantPrice(raw){
     const trimmed = (raw || '').trim();
     if (!trimmed) return '';
@@ -6054,7 +6160,8 @@
     }
     restaurantListEl.innerHTML = restaurantRows.map((r, idx) => {
       const rank = idx + 1;
-      const { stars, visits } = parseRestaurantNotes(r.notes);
+      const stars = restaurantStarsCount(r);
+      const { visits } = parseRestaurantNotes(r.notes);
       const starsHtml = stars > 0
         ? '<span class="restaurant-stars" title="' + stars + ' Michelin star' + (stars === 1 ? '' : 's') + '">' + '⭐'.repeat(stars) + '</span>'
         : '';
@@ -6112,11 +6219,28 @@
   // a stable id — safe for now since nothing currently reorders that array;
   // worth revisiting if a manual-reorder feature is ever added later.
   let openRestaurantIndex = null;
-  let restaurantDetailsActiveTab = 'photos';
+  let restaurantDetailsActiveTab = 'courses'; // Courses is now the first tab, so it's the default
+  let restaurantEditMode = false;
+  let newRestaurantDraft = null; // { name, cuisine, location, stars } while creating a brand-new restaurant; null otherwise
 
   function openRestaurantDetailsPanel(index){
     openRestaurantIndex = index;
-    restaurantDetailsActiveTab = 'photos'; // always starts here on a fresh open
+    newRestaurantDraft = null;
+    restaurantEditMode = false;
+    restaurantDetailsActiveTab = 'courses'; // always starts here on a fresh open
+    restaurantDetailsPanel.classList.add('open');
+    document.body.classList.add('details-open-lock');
+    renderRestaurantDetailsContent();
+  }
+
+  // "New Restaurant" — deliberately doesn't touch restaurantRows until Save.
+  // Keeping the draft in its own variable (rather than appending a
+  // placeholder row immediately) means Cancel has nothing to undo, and
+  // there's no off-by-one indexing to worry about if the panel is closed
+  // mid-creation.
+  function openNewRestaurantForm(){
+    openRestaurantIndex = null;
+    newRestaurantDraft = { name: '', cuisine: '', location: '', stars: '' };
     restaurantDetailsPanel.classList.add('open');
     document.body.classList.add('details-open-lock');
     renderRestaurantDetailsContent();
@@ -6124,8 +6248,64 @@
 
   function closeRestaurantDetailsPanel(){
     openRestaurantIndex = null;
+    newRestaurantDraft = null;
+    restaurantEditMode = false;
     restaurantDetailsPanel.classList.remove('open');
     document.body.classList.remove('details-open-lock');
+  }
+
+  function enterRestaurantEditMode(){
+    restaurantEditMode = true;
+    renderRestaurantDetailsContent();
+  }
+
+  function cancelRestaurantEdit(){
+    if (newRestaurantDraft){
+      // Nothing was ever saved for a brand-new restaurant — closing is the
+      // only sensible "cancel".
+      closeRestaurantDetailsPanel();
+      return;
+    }
+    restaurantEditMode = false;
+    renderRestaurantDetailsContent();
+  }
+
+  function saveRestaurantEditForm(){
+    const name = restaurantDetailsPanelInner.querySelector('#restaurant-edit-name').value.trim();
+    const cuisine = restaurantDetailsPanelInner.querySelector('#restaurant-edit-cuisine').value.trim();
+    const location = restaurantDetailsPanelInner.querySelector('#restaurant-edit-location').value.trim();
+    const stars = restaurantDetailsPanelInner.querySelector('#restaurant-edit-stars').value;
+
+    if (!name){
+      showToast('Give it a name first');
+      return;
+    }
+
+    if (newRestaurantDraft){
+      // Appended to the end — unranked/untiered by default, same as any
+      // fresh entry with no established score yet.
+      restaurantRows.push({
+        name, cuisine, location, stars,
+        notes: '', bestFlavor: '', flavorVariety: '', total: '', price: '', year: '', bests: '',
+        photos: [], courses: []
+      });
+      newRestaurantDraft = null;
+      openRestaurantIndex = restaurantRows.length - 1;
+      restaurantDetailsActiveTab = 'courses';
+      saveRestaurantProgress();
+      renderRestaurantsPage();
+      renderRestaurantDetailsContent();
+      showToast('Restaurant added');
+    } else if (openRestaurantIndex !== null){
+      restaurantEditMode = false;
+      updateOpenRestaurant(rest => {
+        rest.name = name;
+        rest.cuisine = cuisine;
+        rest.location = location;
+        rest.stars = stars;
+      });
+      renderRestaurantsPage(); // list card reflects a renamed restaurant too
+    }
   }
 
   // Mutates the open restaurant's data in place, saves, and re-renders the
@@ -6180,16 +6360,26 @@
     );
   }
 
-  const RESTAURANT_COURSE_SCORES = [12, 11, 10, 9, 8]; // 12 first — the most likely/common score, easiest to reach
+  // Shared "plain text until clicked" score select builder — used by course
+  // cards and the Best Flavor / Flavor Variety selects near the heading.
+  // 12/18 (the top of each range) come first in the option list — matches
+  // the established "most likely score gets easiest access" convention.
+  const RESTAURANT_COURSE_SCORES = [12, 11, 10, 9, 8];
+  const RESTAURANT_BEST_FLAVOR_SCORES = [12, 11, 10, 9, 8];
+  const RESTAURANT_FLAVOR_VARIETY_SCORES = [18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4];
+
+  function buildScoreSelectHtml(options, currentValue, extraAttrs){
+    const current = currentValue === undefined || currentValue === null || currentValue === '' ? '' : String(currentValue);
+    const optionsHtml = ['<option value=""' + (current === '' ? ' selected' : '') + '>—</option>']
+      .concat(options.map(opt =>
+        '<option value="' + opt + '"' + (current === String(opt) ? ' selected' : '') + '>' + opt + '</option>'
+      ));
+    const scoreClass = 'restaurant-score-select' + (current !== '' ? ' has-score' : '');
+    return '<select class="' + scoreClass + '" ' + extraAttrs + '>' + optionsHtml.join('') + '</select>';
+  }
 
   function restaurantCourseScoreSelectHtml(course, index){
-    const current = course.score === undefined || course.score === null ? '' : String(course.score);
-    const options = ['<option value=""' + (current === '' ? ' selected' : '') + '>—</option>']
-      .concat(RESTAURANT_COURSE_SCORES.map(score =>
-        '<option value="' + score + '"' + (current === String(score) ? ' selected' : '') + '>' + score + '</option>'
-      ));
-    const scoreClass = 'restaurant-course-score' + (current !== '' ? ' has-score' : '');
-    return '<select class="' + scoreClass + '" data-course-index="' + index + '">' + options.join('') + '</select>';
+    return buildScoreSelectHtml(RESTAURANT_COURSE_SCORES, course.score, 'data-course-index="' + index + '"');
   }
 
   function renderRestaurantCoursesTabHtml(r){
@@ -6210,37 +6400,135 @@
     );
   }
 
-  function renderRestaurantDetailsContent(){
-    if (openRestaurantIndex === null) return;
-    const r = restaurantRows[openRestaurantIndex];
-    const rank = openRestaurantIndex + 1;
-    const { stars } = parseRestaurantNotes(r.notes);
-    const starsHtml = stars > 0 ? ' <span class="restaurant-stars">' + '⭐'.repeat(stars) + '</span>' : '';
-    const meta = [r.cuisine, r.location].filter(Boolean).join(' • ');
+  // Total is always the sum of these two, computed live — not the static
+  // "total" string from the original spreadsheet import, which a brand new
+  // restaurant wouldn't have anyway. Hidden entirely until both are set.
+  function renderRestaurantScoresRowHtml(r){
+    return (
+      '<div class="restaurant-scores-row">' +
+        '<div class="restaurant-score-block">' +
+          '<span class="restaurant-score-label">Best Flavor</span>' +
+          buildScoreSelectHtml(RESTAURANT_BEST_FLAVOR_SCORES, r.bestFlavor, 'id="restaurant-best-flavor-select"') +
+        '</div>' +
+        '<div class="restaurant-score-block">' +
+          '<span class="restaurant-score-label">Flavor Variety</span>' +
+          buildScoreSelectHtml(RESTAURANT_FLAVOR_VARIETY_SCORES, r.flavorVariety, 'id="restaurant-flavor-variety-select"') +
+        '</div>' +
+        '<div class="restaurant-score-block restaurant-score-total-block" id="restaurant-score-total-block" style="display:none;">' +
+          '<span class="restaurant-score-label">Total</span>' +
+          '<span class="restaurant-score-total-value" id="restaurant-score-total-value"></span>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  // Direct DOM update, not a re-render — same reasoning as
+  // saveOpenRestaurantQuietly. Called once right after rendering and again
+  // on each select's own change.
+  function updateRestaurantScoreTotalDisplay(){
+    const bestFlavorSelect = restaurantDetailsPanelInner.querySelector('#restaurant-best-flavor-select');
+    const flavorVarietySelect = restaurantDetailsPanelInner.querySelector('#restaurant-flavor-variety-select');
+    const totalBlock = restaurantDetailsPanelInner.querySelector('#restaurant-score-total-block');
+    const totalValueEl = restaurantDetailsPanelInner.querySelector('#restaurant-score-total-value');
+    if (!bestFlavorSelect || !flavorVarietySelect || !totalBlock) return;
+    const a = bestFlavorSelect.value ? Number(bestFlavorSelect.value) : null;
+    const b = flavorVarietySelect.value ? Number(flavorVarietySelect.value) : null;
+    if (a !== null && b !== null && !isNaN(a) && !isNaN(b)){
+      totalValueEl.textContent = a + b;
+      totalBlock.style.display = '';
+    } else {
+      totalBlock.style.display = 'none';
+    }
+  }
+
+  function renderRestaurantEditForm(){
+    const isNew = !!newRestaurantDraft;
+    const r = isNew ? newRestaurantDraft : restaurantRows[openRestaurantIndex];
+    const starsVal = isNew ? (r.stars === '' ? 0 : r.stars) : restaurantStarsCount(r);
 
     restaurantDetailsPanelInner.innerHTML =
       '<div class="details-art-wrap">' +
         '<button class="details-close-btn" type="button" title="Close">✕</button>' +
       '</div>' +
       '<div class="details-content" style="padding-top:20px;">' +
-        '<h2 class="details-album">#' + rank + ' ' + escapeHtml(r.name) + starsHtml + '</h2>' +
-        (meta ? '<p class="details-artist">' + escapeHtml(meta) + '</p>' : '') +
-      '</div>' +
-      '<div class="restaurant-details-tabs">' +
-        '<button class="restaurant-details-tab-btn' + (restaurantDetailsActiveTab === 'photos' ? ' active' : '') + '" data-tab="photos" type="button">Photos</button>' +
-        '<button class="restaurant-details-tab-btn' + (restaurantDetailsActiveTab === 'courses' ? ' active' : '') + '" data-tab="courses" type="button">Courses</button>' +
-      '</div>' +
-      '<div class="restaurant-details-tab-panel' + (restaurantDetailsActiveTab === 'photos' ? ' active' : '') + '" id="restaurant-tab-photos">' +
-        renderRestaurantPhotosTabHtml(r) +
-      '</div>' +
-      '<div class="restaurant-details-tab-panel' + (restaurantDetailsActiveTab === 'courses' ? ' active' : '') + '" id="restaurant-tab-courses">' +
-        renderRestaurantCoursesTabHtml(r) +
+        '<h2 class="details-album">' + (isNew ? 'New Restaurant' : 'Edit Restaurant') + '</h2>' +
+        '<div class="restaurant-edit-form">' +
+          '<label class="restaurant-edit-label">Name</label>' +
+          '<input type="text" class="restaurant-edit-input" id="restaurant-edit-name" value="' + escapeAttr(r.name || '') + '">' +
+          '<label class="restaurant-edit-label">Cuisine</label>' +
+          '<input type="text" class="restaurant-edit-input" id="restaurant-edit-cuisine" value="' + escapeAttr(r.cuisine || '') + '">' +
+          '<label class="restaurant-edit-label">Location</label>' +
+          '<input type="text" class="restaurant-edit-input" id="restaurant-edit-location" value="' + escapeAttr(r.location || '') + '">' +
+          '<label class="restaurant-edit-label">Michelin Stars</label>' +
+          '<select class="restaurant-edit-input" id="restaurant-edit-stars">' +
+            [0, 1, 2, 3].map(n => '<option value="' + n + '"' + (String(starsVal) === String(n) ? ' selected' : '') + '>' + n + (n === 0 ? ' (none)' : '') + '</option>').join('') +
+          '</select>' +
+        '</div>' +
+        '<div class="restaurant-edit-actions">' +
+          '<button class="btn-primary" id="restaurant-edit-save-btn" type="button">Save</button>' +
+          '<button class="btn-ghost" id="restaurant-edit-cancel-btn" type="button">Cancel</button>' +
+        '</div>' +
       '</div>';
 
     restaurantDetailsPanelInner.querySelector('.details-close-btn').addEventListener('click', closeRestaurantDetailsPanel);
+    restaurantDetailsPanelInner.querySelector('#restaurant-edit-save-btn').addEventListener('click', saveRestaurantEditForm);
+    restaurantDetailsPanelInner.querySelector('#restaurant-edit-cancel-btn').addEventListener('click', cancelRestaurantEdit);
+  }
+
+  function renderRestaurantDetailsContent(){
+    if (newRestaurantDraft || restaurantEditMode){
+      renderRestaurantEditForm();
+      return;
+    }
+    if (openRestaurantIndex === null) return;
+
+    const r = restaurantRows[openRestaurantIndex];
+    const rank = openRestaurantIndex + 1;
+    const starsCount = restaurantStarsCount(r);
+    const starsHtml = starsCount > 0 ? ' <span class="restaurant-stars">' + '⭐'.repeat(starsCount) + '</span>' : '';
+    const meta = [r.cuisine, r.location].filter(Boolean).join(' • ');
+
+    restaurantDetailsPanelInner.innerHTML =
+      '<div class="details-art-wrap">' +
+        '<button class="details-edit-btn" type="button" title="Edit">✎</button>' +
+        '<button class="details-close-btn" type="button" title="Close">✕</button>' +
+      '</div>' +
+      '<div class="details-content" style="padding-top:20px;">' +
+        '<h2 class="details-album">#' + rank + ' ' + escapeHtml(r.name) + starsHtml + '</h2>' +
+        (meta ? '<p class="details-artist">' + escapeHtml(meta) + '</p>' : '') +
+        renderRestaurantScoresRowHtml(r) +
+      '</div>' +
+      '<div class="restaurant-details-tabs">' +
+        '<button class="restaurant-details-tab-btn' + (restaurantDetailsActiveTab === 'courses' ? ' active' : '') + '" data-tab="courses" type="button">Courses</button>' +
+        '<button class="restaurant-details-tab-btn' + (restaurantDetailsActiveTab === 'photos' ? ' active' : '') + '" data-tab="photos" type="button">Photos</button>' +
+      '</div>' +
+      '<div class="restaurant-details-tab-panel' + (restaurantDetailsActiveTab === 'courses' ? ' active' : '') + '" id="restaurant-tab-courses">' +
+        renderRestaurantCoursesTabHtml(r) +
+      '</div>' +
+      '<div class="restaurant-details-tab-panel' + (restaurantDetailsActiveTab === 'photos' ? ' active' : '') + '" id="restaurant-tab-photos">' +
+        renderRestaurantPhotosTabHtml(r) +
+      '</div>';
+
+    restaurantDetailsPanelInner.querySelector('.details-close-btn').addEventListener('click', closeRestaurantDetailsPanel);
+    restaurantDetailsPanelInner.querySelector('.details-edit-btn').addEventListener('click', enterRestaurantEditMode);
 
     restaurantDetailsPanelInner.querySelectorAll('.restaurant-details-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => switchRestaurantDetailsTab(btn.dataset.tab));
+    });
+
+    // Best Flavor / Flavor Variety wiring
+    updateRestaurantScoreTotalDisplay();
+    const bestFlavorSelect = restaurantDetailsPanelInner.querySelector('#restaurant-best-flavor-select');
+    const flavorVarietySelect = restaurantDetailsPanelInner.querySelector('#restaurant-flavor-variety-select');
+    bestFlavorSelect.addEventListener('change', () => {
+      bestFlavorSelect.classList.toggle('has-score', !!bestFlavorSelect.value);
+      saveOpenRestaurantQuietly(rest => { rest.bestFlavor = bestFlavorSelect.value; });
+      updateRestaurantScoreTotalDisplay();
+    });
+    flavorVarietySelect.addEventListener('change', () => {
+      flavorVarietySelect.classList.toggle('has-score', !!flavorVarietySelect.value);
+      saveOpenRestaurantQuietly(rest => { rest.flavorVariety = flavorVarietySelect.value; });
+      updateRestaurantScoreTotalDisplay();
     });
 
     // Photos tab wiring
@@ -6297,7 +6585,7 @@
         saveOpenRestaurantQuietly(rest => { rest.courses[i].text = textarea.value; });
       });
     });
-    restaurantDetailsPanelInner.querySelectorAll('.restaurant-course-score').forEach(select => {
+    restaurantDetailsPanelInner.querySelectorAll('.restaurant-score-select[data-course-index]').forEach(select => {
       select.addEventListener('change', () => {
         const i = Number(select.dataset.courseIndex);
         select.classList.toggle('has-score', !!select.value); // direct DOM update, not a re-render — see saveOpenRestaurantQuietly
@@ -6311,6 +6599,8 @@
       });
     });
   }
+
+  restaurantNewBtn.addEventListener('click', openNewRestaurantForm);
 
   // ---------- FULL BACKUP (Settings) — bundles all three domains together ----------
   exportAllBtn.addEventListener('click', async () => {
